@@ -35,7 +35,7 @@
   },
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/LeeBhin/cytoscape-polygon-reshape.git"
   },
-  "homepage": ""
+  "homepage": "https://github.com/LeeBhin/cytoscape-polygon-reshape"
 }
