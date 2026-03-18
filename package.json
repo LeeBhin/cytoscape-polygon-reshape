@@ -1,0 +1,41 @@
+{
+  "name": "cytoscape-polygon-reshape",
+  "version": "1.0.1",
+  "description": "Cytoscape.js plugin for node resize (single/multi selection, 8-directional handles) and polygon vertex editing with real-time SVG overlay",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "default": "./src/index.js"
+    }
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "cytoscape",
+    "cytoscape-extension",
+    "cytoscape-plugin",
+    "node-resize",
+    "node-reshape",
+    "polygon",
+    "vertex-editing",
+    "graph",
+    "handles",
+    "grapple"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "cytoscape": "^3.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "homepage": ""
+}
