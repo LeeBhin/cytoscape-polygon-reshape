@@ -4,6 +4,7 @@ A [Cytoscape.js](https://js.cytoscape.org) plugin for interactive node resizing 
 
 - **8-directional resize handles** for single & multi-selected nodes
 - **Directional resize** — dragged edge moves, opposite edge stays fixed
+- **Shift + drag** to constrain aspect ratio during resize
 - **Polygon vertex editing** with real-time SVG overlay during drag
 - **Zero dependencies** — only requires Cytoscape.js as a peer dependency
 - Highly configurable: handle appearance, outline style, size constraints, snap grid, callbacks, and more
@@ -97,8 +98,17 @@ When `polygonVertexEditOnSelect` is `false`:
 | `minHeight` | `number` | `5` | Minimum node height |
 | `maxWidth` | `number` | `Infinity` | Maximum node width |
 | `maxHeight` | `number` | `Infinity` | Maximum node height |
-| `aspectRatioLocked` | `boolean` | `false` | Lock width/height ratio during resize |
+| `aspectRatioLocked` | `boolean` | `false` | Always lock aspect ratio during resize (same as holding Shift) |
 | `snapGrid` | `number` | `0` | Snap to grid interval (`0` to disable) |
+
+### Shift Key Constraint
+
+Hold **Shift** while dragging a resize handle to temporarily lock the aspect ratio. This works with all handle directions:
+
+- **Corner handles** (nw, ne, se, sw) — the larger axis drives, the other follows proportionally
+- **Edge handles** (n, s, e, w) — the dragged axis drives, the perpendicular axis follows proportionally
+
+To always lock the ratio without requiring Shift, set `aspectRatioLocked: true`.
 
 ### Directions
 

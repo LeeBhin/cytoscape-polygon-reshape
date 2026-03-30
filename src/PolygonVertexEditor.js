@@ -190,7 +190,7 @@ export default class PolygonVertexEditor {
       origModel.push({ x: pos.x - hw + pts[i] * w, y: pos.y - hh + pts[i + 1] * h });
     }
 
-    this._drag = { idx, node, origModel, origPts: pts.slice(), origW: w, origH: h };
+    this._drag = { idx, node, origModel, origPts: pts.slice(), origW: w, origH: h, startClientX: e.clientX, startClientY: e.clientY };
 
     this._updateOverlay(origModel);
     node.style('visibility', 'hidden');
@@ -221,7 +221,11 @@ export default class PolygonVertexEditor {
     }
 
     const pts = d.origModel.map(p => ({ ...p }));
-    pts[d.idx] = { x: mx, y: my };
+    const zoom2 = cy.zoom();
+    pts[d.idx] = {
+      x: d.origModel[d.idx].x + (e.clientX - d.startClientX) / zoom2,
+      y: d.origModel[d.idx].y + (e.clientY - d.startClientY) / zoom2,
+    };
     this._updateOverlay(pts);
     d.currentPts = pts;
 

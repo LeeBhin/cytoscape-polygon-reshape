@@ -1,7 +1,7 @@
 /**
  * cytoscape-node-reshape
  *
- * Cytoscape.js plugin — node resize (single / multi) + polygon vertex editing
+ * Cytoscape.js plugin — node resize (single / multi) + polygon vertex editing + rotation
  * Zero dependencies.
  *
  * Usage:
@@ -15,9 +15,10 @@
 
 import ResizeHandles from './ResizeHandles.js';
 import PolygonVertexEditor from './PolygonVertexEditor.js';
+import RotationHandle from './RotationHandle.js';
 import { isPolygonNode } from './utils.js';
 
-export { forcePolygonPoints } from './utils.js';
+export { forcePolygonPoints, rotatePolygonPoints } from './utils.js';
 
 const DEFAULTS = {
   // handle appearance
@@ -70,6 +71,18 @@ const DEFAULTS = {
   // layout
   containerZIndex:     1000,
 
+  // rotation
+  rotationEnabled:           false,
+  rotationHandleColor:       null,      // defaults to handleColor
+  rotationHandleBorder:      null,      // defaults to handleBorder
+  rotationHandleHoverColor:  null,      // defaults to handleHoverColor
+  rotationHandleOffset:      25,        // distance from top of bounding box (CSS px)
+  rotationLineColor:         null,      // defaults to outlineColor
+  rotationLineWidth:         1,
+  rotationLineDash:          [3, 3],
+  rotationCursor:            'crosshair',
+  rotationSnapAngle:         15,        // snap increment when Shift held (degrees)
+
   // callbacks
   onResizeStart:       null,
   onResize:            null,
@@ -77,6 +90,9 @@ const DEFAULTS = {
   onVertexDragStart:   null,
   onVertexDrag:        null,
   onVertexDragEnd:     null,
+  onRotateStart:       null,
+  onRotate:            null,
+  onRotateEnd:         null,
 };
 
 function register(cytoscape) {
@@ -93,6 +109,10 @@ function register(cytoscape) {
 
     const resizer = new ResizeHandles(cy, opts, emit);
     const polygonEditor = new PolygonVertexEditor(cy, opts, emit);
+    const rotator = new RotationHandle(cy, opts, emit);
+
+    cy.on('nodereshape.rotatestart', () => cy.scratch('_isRotating', true));
+    cy.on('nodereshape.rotateend',   () => cy.scratch('_isRotating', false));
 
     // ── selection sync ──
     let scheduled = false;
@@ -106,8 +126,6 @@ function register(cytoscape) {
         if (opts.polygonVertexEditOnSelect && selected.length === 1 && isPolygonNode(selected[0])) {
           polygonEditor.show(selected[0]);
         } else if (!polygonEditor._drag) {
-          // vertex 드래그 중이 아닐 때만 hide (API editVertices 포함)
-          // 선택 해제 시 vertex 편집 모드도 해제
           if (polygonEditor.node) {
             const editingId = polygonEditor.node.id();
             const stillSelected = selected.some(n => n.id() === editingId);
@@ -115,21 +133,24 @@ function register(cytoscape) {
           }
         }
 
-        // polygonVertexEditOnSelect === true:
-        //   polygon 단독 선택 → vertex editor만 (resize 핸들 없음)
-        //   다중 선택 → polygon 포함 모든 노드에 resize 핸들
-        // polygonVertexEditOnSelect === false:
-        //   polygon도 항상 사각형 resize 핸들
+        if (polygonEditor.node) {
+          resizer.clear();
+          rotator.clear();
+          return;
+        }
+
         const singlePolygonVertex = opts.polygonVertexEditOnSelect
           && selected.length === 1 && isPolygonNode(selected[0]);
         const resizeTargets = singlePolygonVertex
-          ? selected.filter(() => false)   // empty
+          ? selected.filter(() => false)
           : selected;
 
         if (resizeTargets.length >= 1) {
           resizer.sync(resizeTargets);
+          rotator.sync(resizeTargets);
         } else {
           resizer.clear();
+          rotator.clear();
         }
       });
     };
@@ -139,18 +160,19 @@ function register(cytoscape) {
     cy.on('remove', 'node', (e) => {
       if (polygonEditor.node && e.target.id() === polygonEditor.node.id()) polygonEditor.hide();
       resizer.remove(e.target.id());
+      rotator.remove(e.target.id());
     });
 
     cy.on('position', 'node', (e) => {
       if (polygonEditor.node && e.target.id() === polygonEditor.node.id() && !polygonEditor._drag) {
         polygonEditor.update();
       }
-      if (e.target.selected()) resizer.update();
+      if (e.target.selected()) { resizer.update(); rotator.update(); }
     });
 
     cy.on('zoom pan', () => {
       if (polygonEditor.node) polygonEditor.update();
-      if (cy.nodes(':selected').length >= 1) resizer.scheduleUpdate();
+      if (cy.nodes(':selected').length >= 1) { resizer.scheduleUpdate(); rotator.scheduleUpdate(); }
     });
 
     cy.on('grab', 'node', () => {
@@ -159,21 +181,24 @@ function register(cytoscape) {
     cy.on('free', 'node', () => resizer.setDragging(false));
 
     const origDestroy = cy.destroy.bind(cy);
-    cy.destroy = () => { polygonEditor.destroy(); resizer.destroy(); origDestroy(); };
+    cy.destroy = () => { polygonEditor.destroy(); resizer.destroy(); rotator.destroy(); origDestroy(); };
 
     // ── public API ──
     const api = {
       setInteractive(enabled) {
         resizer.setInteractive(enabled);
         polygonEditor.setInteractive(enabled);
+        rotator.setInteractive(enabled);
       },
       refresh() {
         resizer.scheduleUpdate();
+        rotator.scheduleUpdate();
         if (polygonEditor.node) polygonEditor.update();
       },
       editVertices(node) {
         if (!node || !isPolygonNode(node)) return;
         resizer.clear();
+        rotator.clear();
         polygonEditor.show(node);
       },
       exitVertexEdit() {
@@ -182,6 +207,7 @@ function register(cytoscape) {
       },
       clearAll() {
         resizer.clear();
+        rotator.clear();
         polygonEditor.hide();
       },
       setOptions(patch) {

@@ -214,6 +214,7 @@ export default class ResizeHandles {
   _onMouseMove(e) {
     const st = this._resizeState; if (!st) return;
     this._lastX = e.clientX; this._lastY = e.clientY;
+    this._shiftKey = e.shiftKey;
     if (this._resizeRafId) return;
     this._resizeRafId = requestAnimationFrame(() => {
       this._resizeRafId = null; if (!this._resizeState) return;
@@ -224,16 +225,41 @@ export default class ResizeHandles {
       if (st.dir.dx) nw = st.startW + dx * st.dir.dx;
       if (st.dir.dy) nh = st.startH + dy * st.dir.dy;
 
+      // Shift 또는 aspectRatioLocked: 비율 고정
+      const lockRatio = this._shiftKey || this.opts.aspectRatioLocked;
+      if (lockRatio && st.startW > 0 && st.startH > 0) {
+        const ratio = st.startW / st.startH;
+        if (st.dir.dx && st.dir.dy) {
+          // 코너 핸들: 큰 축 기준, 부호는 드래그 방향(dir) 고정
+          const dw = nw - st.startW;
+          const dh = nh - st.startH;
+          if (Math.abs(dw) * st.startH >= Math.abs(dh) * st.startW) {
+            nw = st.startW + dw;
+            nh = st.startH + (Math.abs(dw) / ratio) * st.dir.dy * Math.sign(dw * st.dir.dx || 1);
+          } else {
+            nh = st.startH + dh;
+            nw = st.startW + (Math.abs(dh) * ratio) * st.dir.dx * Math.sign(dh * st.dir.dy || 1);
+          }
+        } else if (st.dir.dx) {
+          // 좌우 변 핸들: width 기준으로 height 따라감
+          nh = nw / ratio;
+        } else {
+          // 상하 변 핸들: height 기준으로 width 따라감
+          nw = nh * ratio;
+        }
+      }
+
       const clamped = clampSize(nw, nh, this.opts, st.startW, st.startH);
       nw = clamped.w; nh = clamped.h;
 
       const rw = st.startW > 0 ? nw / st.startW : 1;
       const rh = st.startH > 0 ? nh / st.startH : 1;
 
-      // 드래그한 방향만 이동하도록 position 보정
-      // dir.dx=1(동쪽) → 중심이 오른쪽으로, dir.dx=-1(서쪽) → 중심이 왼쪽으로
-      const posX = st.startPos.x + st.dir.dx * (nw - st.startW) / 2;
-      const posY = st.startPos.y + st.dir.dy * (nh - st.startH) / 2;
+      // position 보정 — 비율 고정 시 양축 모두 보정 필요
+      const dirX = lockRatio ? (st.dir.dx || 1) : st.dir.dx;
+      const dirY = lockRatio ? (st.dir.dy || 1) : st.dir.dy;
+      const posX = st.startPos.x + dirX * (nw - st.startW) / 2;
+      const posY = st.startPos.y + dirY * (nh - st.startH) / 2;
 
       this.cy.batch(() => {
         st.node.data('w', nw); st.node.style('width', nw);

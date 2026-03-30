@@ -179,6 +179,33 @@ export function applyOutlineAttrs(svgShape, opts) {
   }
 }
 
+// ── rotation helpers ──
+
+export function rotatePoint(px, py, cx, cy, rad) {
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  const dx = px - cx, dy = py - cy;
+  return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos };
+}
+
+export function angleBetween(x1, y1, x2, y2) {
+  return Math.atan2(y2 - y1, x2 - x1);
+}
+
+export function rotatePolygonPoints(pts, angleDeg) {
+  if (!pts || pts.length < 6 || !angleDeg) return pts;
+  const rad = (angleDeg * Math.PI) / 180;
+  const n = pts.length / 2;
+  let cx = 0, cy = 0;
+  for (let i = 0; i < pts.length; i += 2) { cx += pts[i]; cy += pts[i + 1]; }
+  cx /= n; cy /= n;
+  const result = [];
+  for (let i = 0; i < pts.length; i += 2) {
+    const r = rotatePoint(pts[i], pts[i + 1], cx, cy, rad);
+    result.push(r.x, r.y);
+  }
+  return result;
+}
+
 export function clampSize(w, h, opts, origW, origH) {
   let cw = w, ch = h;
   cw = Math.max(opts.minWidth, Math.min(opts.maxWidth, cw));
